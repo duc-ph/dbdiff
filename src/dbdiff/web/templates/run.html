@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Run #{{ run.id }} — dbdiff{% endblock %}
+{% block content %}
+<a href="/" class="back">all runs</a>
+
+<section class="card">
+  <div class="runhead">
+    <div>
+      <p class="eyebrow">Diff run</p>
+      <h1 class="run-id"><span class="hash">#</span>{{ run.id }}</h1>
+      <p class="run-meta">
+        started {{ run.created_at|replace('T', ' ') }}
+        {%- if run.finished_at %}<span class="dot">•</span>finished {{ run.finished_at|replace('T', ' ') }}{% endif %}
+      </p>
+    </div>
+    <div class="runhead-actions">
+      <span class="badge {{ run.status }}">{{ run.status }}</span>
+      <button class="del-btn lg" hx-post="/runs/{{ run.id }}/delete"
+              hx-confirm="Delete run #{{ run.id }}? This cannot be undone.">Delete run</button>
+    </div>
+  </div>
+
+  <div class="snap">
+    <div class="end base"><span class="role">Base</span><span class="lab">{{ run.base_label }}</span></div>
+    <div class="mid" aria-hidden="true">&rarr;</div>
+    <div class="end new"><span class="role">New</span><span class="lab">{{ run.new_label }}</span></div>
+  </div>
+
+  {% if run.status == 'running' %}
+    <div id="status" hx-get="/runs/{{ run.id }}/status"
+         hx-trigger="load, every 1s" hx-swap="innerHTML">
+      <p class="muted mono small">starting worker…</p>
+    </div>
+  {% elif run.status == 'error' %}
+    <div class="error"><strong>Run failed.</strong> <span class="mono">{{ run.error }}</span></div>
+  {% endif %}
+</section>
+
+{% if run.status not in ('running', 'error') %}
+  {% include "_overview.html" %}
+{% endif %}
+{% endblock %}

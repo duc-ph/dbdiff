@@ -1,0 +1,24 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# local run state / real data — never publish
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+*.log
+.dbdiff/
+runs/
+scratch/
+
+# the user's runtime config + diff exports (dbdiff.example.yml IS committed)
+dbdiff.yml
+blasthits_diff.json
+diff.json
+*.diff.json

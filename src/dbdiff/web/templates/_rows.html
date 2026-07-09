@@ -1,0 +1,62 @@
+{% if view.type == 'modified' %}
+  {% if view.mods %}
+  <div class="scroll-x">
+  <table class="redline">
+    <thead><tr>
+      <th>Key</th><th>Changed columns <span class="muted">— old <span class="arrow">&rarr;</span> new</span></th>
+    </tr></thead>
+    <tbody>
+    {% for m in view.mods %}
+      <tr>
+        <td class="keycell">{% for k, val in m.key.items() %}<span class="kpair"><span class="kk">{{ k }}=</span>{{ val|disp }}</span>{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
+        <td>
+          <div class="changes">
+          {% for col, old, new in m.changes %}
+            <div class="change">
+              <span class="col">{{ col }}</span>
+              <span class="val old {{ 'nil' if old is none or old == '' else '' }}" title="{{ old|disp }}">{{ old|disp }}</span>
+              <span class="to" aria-hidden="true">&rarr;</span>
+              <span class="val new {{ 'nil' if new is none or new == '' else '' }}" title="{{ new|disp }}">{{ new|disp }}</span>
+            </div>
+          {% endfor %}
+          </div>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="none">No modified rows.</p>{% endif %}
+
+{% else %}
+  {% if view.rows %}
+  <div class="scroll-x">
+  <table class="rows">
+    <thead><tr>
+      <th class="gut">{{ '+' if view.type == 'inserted' else '−' }}</th>
+      {% for c in view.columns %}<th>{{ c }}</th>{% endfor %}
+    </tr></thead>
+    <tbody>
+    {% for row in view.rows %}
+      <tr class="{{ 'rowins' if view.type == 'inserted' else 'rowdel' }}">
+        <td class="gut">{{ '+' if view.type == 'inserted' else '−' }}</td>
+        {% for c in view.columns %}{% set v = row[c] %}<td><div class="cell {{ 'nil' if v is none or v == '' else '' }}" title="{{ v|disp }}">{{ v|disp }}</div></td>{% endfor %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="none">No {{ view.type }} rows.</p>{% endif %}
+{% endif %}
+
+{% if page.total > page.limit %}
+<div class="pager">
+  <button {% if not page.has_prev %}disabled{% endif %}
+    hx-get="/runs/{{ run_id }}/tables/{{ table }}/rows?type={{ type }}&offset={{ page.prev_offset }}"
+    hx-target="#rows" hx-swap="innerHTML">&larr; prev</button>
+  <span class="range"><b>{{ page.shown_from }}</b>–<b>{{ page.shown_to }}</b> of {{ page.total }}</span>
+  <button {% if not page.has_next %}disabled{% endif %}
+    hx-get="/runs/{{ run_id }}/tables/{{ table }}/rows?type={{ type }}&offset={{ page.next_offset }}"
+    hx-target="#rows" hx-swap="innerHTML">next &rarr;</button>
+</div>
+{% endif %}

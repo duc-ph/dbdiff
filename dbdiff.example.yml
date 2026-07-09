@@ -1,0 +1,30 @@
+# dbdiff configuration — every section is optional.
+# Pass with: dbdiff run --config dbdiff.yml ...
+
+tables:
+  include: ["*"]            # glob(s) of tables to diff
+  exclude:                  # glob(s) to skip entirely
+    - "audit_log"
+    - "tmp_*"
+
+# Row-identity key overrides. Use for tables with no usable PRIMARY KEY,
+# or to diff on a business key instead of the PK.
+keys:
+  order_items: [order_id, line_no]
+
+# Columns ignored when deciding whether a row changed (kills noise from
+# auto-updated timestamps, etc.). "*" applies to every table.
+ignore_columns:
+  "*": [updated_at]
+  users: [last_login_at]
+
+mariadb:
+  image: "mysql:8.0"        # restore image (default); use "mariadb:11" for MariaDB dumps
+  startup_timeout: 120      # seconds to wait for the server to accept connections
+
+# Snapshot cache: `dbdiff run --cache` (default on) restores each dump once,
+# keyed by its name, into a persistent container and reuses it across runs — so
+# diffing 18→19 then 19→20 restores step 19 only once. Manage with
+# `dbdiff cache list` / `dbdiff cache clear`.
+cache:
+  max_snapshots: 6          # keep N restored snapshots before LRU eviction

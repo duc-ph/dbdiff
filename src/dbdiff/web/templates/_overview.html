@@ -1,0 +1,100 @@
+{% if summary %}
+{% set ti = summary.rows_inserted %}{% set tm = summary.rows_modified %}{% set tdl = summary.rows_deleted %}
+{% set tot = ti + tm + tdl %}
+<section class="card">
+  <div class="section-head">
+    <h2>Summary</h2>
+    <span class="eyebrow">{{ 'changes found' if summary.has_changes else 'no changes' }}</span>
+  </div>
+
+  <div class="compbar-wrap">
+    {% if tot %}
+    <div class="compbar" role="img"
+         aria-label="{{ ti }} inserted, {{ tm }} modified, {{ tdl }} deleted">
+      {% if ti %}<span class="seg ins" style="width: {{ (ti / tot * 100)|round(3) }}%"></span>{% endif %}
+      {% if tm %}<span class="seg mod" style="width: {{ (tm / tot * 100)|round(3) }}%"></span>{% endif %}
+      {% if tdl %}<span class="seg del" style="width: {{ (tdl / tot * 100)|round(3) }}%"></span>{% endif %}
+    </div>
+    <div class="complegend">
+      <span><i class="sw ins"></i>{{ ti }} inserted</span>
+      <span><i class="sw mod"></i>{{ tm }} modified</span>
+      <span><i class="sw del"></i>{{ tdl }} deleted</span>
+      <span class="muted">across <b>{{ summary.tables_changed }}</b> of {{ summary.tables_compared }} tables</span>
+    </div>
+    {% else %}
+    <div class="compbar flat" aria-label="no row changes"></div>
+    <div class="complegend"><span class="muted">No row changes across {{ summary.tables_compared }} tables compared.</span></div>
+    {% endif %}
+  </div>
+
+  <div class="scoreboard">
+    <div class="stat muted-stat"><div class="v num">{{ summary.tables_compared }}</div><span class="k">tables compared</span></div>
+    <div class="stat muted-stat"><div class="v num">{{ summary.tables_changed }}</div><span class="k">tables changed</span></div>
+    <div class="stat ins"><div class="v num{{ ' z' if not ti }}"><span class="glyph">+</span>{{ ti }}</div><span class="k">rows inserted</span></div>
+    <div class="stat mod"><div class="v num{{ ' z' if not tm }}"><span class="glyph">~</span>{{ tm }}</div><span class="k">rows modified</span></div>
+    <div class="stat del"><div class="v num{{ ' z' if not tdl }}"><span class="glyph">&minus;</span>{{ tdl }}</div><span class="k">rows deleted</span></div>
+    {% if summary.tables_added %}<div class="stat ins"><div class="v num"><span class="glyph">+</span>{{ summary.tables_added }}</div><span class="k">tables added</span></div>{% endif %}
+    {% if summary.tables_removed %}<div class="stat del"><div class="v num"><span class="glyph">&minus;</span>{{ summary.tables_removed }}</div><span class="k">tables dropped</span></div>{% endif %}
+  </div>
+</section>
+{% endif %}
+
+{% if schema_changes %}
+<section class="card">
+  <h2>Schema changes</h2>
+  <ul class="schema">
+    {% for s in schema_changes %}
+    {% set added = 'added' in s.kind %}{% set removed = 'removed' in s.kind %}
+    <li class="{{ 'add' if added else 'rem' if removed else 'chg' }}">
+      <span class="sg">{{ '+' if added else '−' if removed else '~' }}</span>
+      <span>
+        <span class="tbl">{{ s.table }}</span>{% if s.detail and s.detail.column %}<span class="col">.{{ s.detail.column }}</span>{% endif %}
+        <span class="kind">{{ s.kind|replace('_', ' ') }}</span>
+        {%- if s.detail %}
+          {%- if s.detail.base_type and s.detail.new_type %} <span class="type-old">{{ s.detail.base_type }}</span> <span class="ar">&rarr;</span> <span class="type-new">{{ s.detail.new_type }}</span>
+          {%- elif s.detail.new_type %} <span class="type-new">{{ s.detail.new_type }}</span>
+          {%- elif s.detail.base_type %} <span class="type-old">{{ s.detail.base_type }}</span>{% endif %}
+        {%- endif %}
+      </span>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<section class="card">
+  {% set ns = namespace(changed=0) %}
+  {% for t in tables %}{% if t.inserted or t.modified or t.deleted %}{% set ns.changed = ns.changed + 1 %}{% endif %}{% endfor %}
+  <div class="section-head">
+    <h2>Tables</h2>
+    <span class="eyebrow">{{ ns.changed }} changed · {{ tables|length }} total</span>
+  </div>
+  <table class="tables">
+    <thead><tr>
+      <th>Table</th><th>Key</th>
+      <th class="r">+ ins</th><th class="r">~ mod</th><th class="r">&minus; del</th><th></th>
+    </tr></thead>
+    <tbody>
+    {% for t in tables %}
+      {% set changed = t.inserted or t.modified or t.deleted %}
+      <tr class="{{ 'changed' if changed else 'unchanged' }}">
+        <td class="tname">{{ t.table_name }}
+          {% if t.schema_status == 'added' %}<span class="tag added">new</span>{% endif %}
+          {% if t.schema_status == 'removed' %}<span class="tag removed">dropped</span>{% endif %}
+          {% if t.schema_status == 'changed' %}<span class="tag schema">schema</span>{% endif %}
+          {% if not t.keyed %}<span class="tag warn">no key</span>{% endif %}
+        </td>
+        <td class="keys">{{ (t.key_json|fromjson)|join(', ') or '—' }}</td>
+        <td class="r d-ins">{{ t.inserted or '' }}</td>
+        <td class="r d-mod">{{ t.modified or '' }}</td>
+        <td class="r d-del">{{ t.deleted or '' }}</td>
+        <td class="r">
+          {% if t.schema_status in ('added', 'removed') %}<span class="note">{{ t.note }}</span>
+          {% elif changed %}<a class="view" href="/runs/{{ run.id }}/tables/{{ t.table_name }}">view <span class="ar">&rarr;</span></a>
+          {% elif t.note %}<span class="note">{{ t.note }}</span>{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>

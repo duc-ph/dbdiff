@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">Pipeline-stage comparison</p>
+  <h1 class="hero-title">What changed between two database snapshots.</h1>
+  <p class="hero-sub">Point dbdiff at a <strong>before</strong> and an <strong>after</strong> — a live
+    DSN or a <code>.sql.gz</code> dump — and read the result as rows
+    <span class="tri g-ins">inserted</span>, <span class="tri g-mod">modified</span>, and
+    <span class="tri g-del">deleted</span>, table by table.</p>
+  <div class="legend">
+    <span class="lg ins"><span class="gl">+</span> inserted</span>
+    <span class="lg mod"><span class="gl">~</span> modified</span>
+    <span class="lg del"><span class="gl">&minus;</span> deleted</span>
+  </div>
+</section>
+
+<section class="card">
+  <h2>New comparison</h2>
+  <form method="post" action="/runs" class="newrun">
+    <div class="pair">
+      <label class="field">
+        <span class="lab">Base <span class="role">/ before</span></span>
+        <input name="base" required
+               placeholder="mysql://user:pass@host/db   or   s3://bucket/pre.sql.gz">
+      </label>
+      <span class="seam" aria-hidden="true">&rarr;</span>
+      <label class="field">
+        <span class="lab">New <span class="role">/ after</span></span>
+        <input name="new" required
+               placeholder="mysql://…   or   s3://bucket/post.sql.gz   or   /path/to/snap.sql.gz">
+      </label>
+    </div>
+    <label class="field">
+      <span class="lab">Config <span class="role">/ optional</span></span>
+      <input name="config" value="{{ default_config }}" placeholder="path to dbdiff.yml">
+    </label>
+    <div class="form-foot">
+      <button type="submit" class="runbtn">Run diff <span class="ar">&rarr;</span></button>
+      <p class="hint">Base is before the pipeline, New is after. <code>.sql.gz</code> dumps are
+        restored into an ephemeral MariaDB; live DSNs are read directly.</p>
+    </div>
+  </form>
+</section>
+
+<section class="card">
+  <div class="section-head">
+    <h2>Run history</h2>
+    {% if runs %}<span class="eyebrow">{{ runs|length }} run{{ '' if runs|length == 1 else 's' }}</span>{% endif %}
+  </div>
+  {% if runs %}
+  <table class="ledger">
+    <thead><tr>
+      <th>Run</th><th>When</th><th>Base &rarr; New</th><th>Status</th><th class="r">Row changes</th><th></th>
+    </tr></thead>
+    <tbody>
+    {% for r in runs %}
+      <tr onclick="location='/runs/{{ r.id }}'" tabindex="0"
+          onkeydown="if(event.key==='Enter')location='/runs/{{ r.id }}'">
+        <td class="id">{{ r.id }}</td>
+        <td class="when num">{{ r.created_at|replace('T', ' ') }}</td>
+        <td class="route">{{ r.base_label }} <span class="ar">&rarr;</span> {{ r.new_label }}</td>
+        <td><span class="badge {{ r.status }}">{{ r.status }}</span></td>
+        <td class="r">
+          {%- if r.summary_json -%}{% set s = r.summary_json|fromjson %}
+            <span class="delta">
+              <span class="d-ins {{ 'z' if not s.rows_inserted }}">+{{ s.rows_inserted }}</span>
+              <span class="d-mod {{ 'z' if not s.rows_modified }}">~{{ s.rows_modified }}</span>
+              <span class="d-del {{ 'z' if not s.rows_deleted }}">&minus;{{ s.rows_deleted }}</span>
+            </span>
+          {%- else -%}<span class="dash">—</span>{%- endif -%}
+        </td>
+        <td class="rowact">
+          <button class="del-btn" title="Delete run #{{ r.id }}" aria-label="Delete run #{{ r.id }}"
+                  hx-post="/runs/{{ r.id }}/delete"
+                  hx-confirm="Delete run #{{ r.id }} ({{ r.base_label }} → {{ r.new_label }})? This cannot be undone."
+                  onclick="event.stopPropagation()">&times;</button>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">No runs yet. Start a comparison above to see what your pipeline changed.</p>
+  {% endif %}
+</section>
+{% endblock %}
