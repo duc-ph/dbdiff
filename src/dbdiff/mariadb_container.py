@@ -68,7 +68,12 @@ def ephemeral_mariadb(
     log(f"starting {image} as {name} …")
     proc = _run(
         [
-            "docker", "run", "-d", "--rm", "--name", name,
+            # No --rm: we tear the container down ourselves in `finally` with
+            # `docker rm -f -v` so the anonymous /var/lib/mysql volume is always
+            # removed. --rm's auto-remove races on crash (e.g. mysqld dying when
+            # the disk fills) and can drop the container yet leave a full
+            # DB-sized volume dangling — the leak this file used to cause.
+            "docker", "run", "-d", "--name", name,
             # Set both vendors' vars so the same code works for mysql:* and mariadb:*.
             "-e", f"MYSQL_ROOT_PASSWORD={ROOT_PASSWORD}",
             "-e", f"MARIADB_ROOT_PASSWORD={ROOT_PASSWORD}",
@@ -92,7 +97,8 @@ def ephemeral_mariadb(
         yield cont
     finally:
         log(f"removing container {name}")
-        _run(["docker", "rm", "-f", name])
+        # -v also removes the container's anonymous /var/lib/mysql volume.
+        _run(["docker", "rm", "-f", "-v", name])
 
 
 def _mapped_port(name: str) -> int:

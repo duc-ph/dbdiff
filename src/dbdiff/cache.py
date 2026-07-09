@@ -73,7 +73,10 @@ class SnapshotCache:
         insp = _run(["docker", "inspect", "-f", "{{.State.Running}}", self.container_name])
         running = insp.returncode == 0 and insp.stdout.strip() == "true"
         if not running:
-            _run(["docker", "rm", "-f", self.container_name])
+            # A stopped cache container's anonymous volume is already dead weight
+            # (the replacement gets a fresh one); -v reclaims it instead of
+            # leaving a full DB-sized volume dangling on every restart.
+            _run(["docker", "rm", "-f", "-v", self.container_name])
             self.log(f"starting snapshot-cache container {self.container_name} ({self.image}) …")
             proc = _run(
                 [
@@ -147,7 +150,8 @@ class SnapshotCache:
 
     def clear(self) -> None:
         """Drop the whole cache (removes the container and all cached snapshots)."""
-        _run(["docker", "rm", "-f", self.container_name])
+        # -v also drops the anonymous volume holding the cached snapshots.
+        _run(["docker", "rm", "-f", "-v", self.container_name])
         self._cont = None
         self.log(f"cleared snapshot cache ({self.container_name} removed)")
 
